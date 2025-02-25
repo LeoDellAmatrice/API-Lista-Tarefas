@@ -1,8 +1,9 @@
 from datetime import date
-
+from flasgger import Swagger
 from flask import Flask, request
 
 app = Flask(__name__)
+Swagger(app)
 
 tarefas = [
     {
