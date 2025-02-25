@@ -1,5 +1,5 @@
 from datetime import date
-from flasgger import Swagger
+from flasgger import Swagger, swag_from
 from flask import Flask, request
 
 app = Flask(__name__)
@@ -26,13 +26,66 @@ tarefas = [
     }
 ]
 
+# Schema padrão para respostas de tarefas
+TASK_SCHEMA = {
+    'type': 'object',
+    'properties': {
+        'id': {'type': 'integer'},
+        'titulo': {'type': 'string'},
+        'descricao': {'type': 'string'},
+        'status': {'type': 'string', 'enum': ['Não iniciada', 'Em andamento', 'Finalizado']},
+        'prioridade': {'type': 'string', 'enum': ['Baixa', 'Média', 'Alta']},
+        'data-inicio': {'type': 'string', 'format': 'date'},
+        'data-fim': {'type': ['string', 'null'], 'format': 'date'}
+    }
+}
 
 @app.route('/tasks', methods=['GET'])
+@swag_from({
+    'tags': ['Tarefas'],
+    'description': 'Lista todas as tarefas cadastradas',
+    'responses': {
+        200: {
+            'description': 'Listagem de todas as tarefas',
+            'schema': {
+                'type': 'array',
+                'items': TASK_SCHEMA
+            }
+        }
+    }
+})
 def get_tasks():
-    if request.method == 'GET':
-        return tarefas
+    return tarefas
 
 @app.route('/tasks', methods=['POST'])
+@swag_from({
+    'tags': ['Tarefas'],
+    'description': 'Cria uma nova tarefa',
+    'parameters': [
+        {
+            'name': 'body',
+            'in': 'body',
+            'required': True,
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'titulo': {'type': 'string'},
+                    'descricao': {'type': 'string'},
+                    'status': {'type': 'string', 'enum': ['Não iniciada', 'Em andamento', 'Finalizado']},
+                    'prioridade': {'type': 'string', 'enum': ['Baixa', 'Média', 'Alta']},
+                    'data-inicio': {'type': 'string', 'format': 'date'},
+                    'data-fim': {'type': ['string', 'null'], 'format': 'date'}
+                }
+            }
+        }
+    ],
+    'responses': {
+        201: {
+            'description': 'Tarefa criada com sucesso',
+            'schema': TASK_SCHEMA
+        }
+    }
+})
 def create_task():
     task = request.json
     task['id'] = len(tarefas) + 1
@@ -58,20 +111,62 @@ def create_task():
         task['data-fim'] = None
 
     tarefas.append(task)
-    return task
+    return task, 201
 
 @app.route('/tasks/<int:task_id>', methods=['PUT'])
+@swag_from({
+    'tags': ['Tarefas'],
+    'description': 'Atualiza uma tarefa existente',
+    'parameters': [
+        {
+            'name': 'task_id',
+            'in': 'path',
+            'type': 'integer',
+            'required': True,
+            'description': 'ID da tarefa'
+        },
+        {
+            'name': 'body',
+            'in': 'body',
+            'required': True,
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'titulo': {'type': 'string'},
+                    'descricao': {'type': 'string'},
+                    'status': {'type': 'string', 'enum': ['Não iniciada', 'Em andamento', 'Finalizado']},
+                    'prioridade': {'type': 'string', 'enum': ['Baixa', 'Média', 'Alta']},
+                    'data-inicio': {'type': 'string', 'format': 'date'},
+                    'data-fim': {'type': ['string', 'null'], 'format': 'date'}
+                }
+            }
+        }
+    ],
+    'responses': {
+        200: {
+            'description': 'Tarefa atualizada com sucesso',
+            'schema': TASK_SCHEMA
+        },
+        404: {
+            'description': 'Tarefa não encontrada',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'error': {'type': 'string', 'example': 'Task not found'}
+                }
+            }
+        }
+    }
+})
 def update_task(task_id):
-
     tarefa_atualizar = None
-
     for tarefa in tarefas:
         if tarefa['id'] == task_id:
             tarefa_atualizar = tarefa
             break
 
     if not tarefa_atualizar:
-        return {'error': 'Task not found'}
+        return {'error': 'Task not found'}, 404
 
     task_body = request.json
 
@@ -86,7 +181,6 @@ def update_task(task_id):
         if task_body['status'] == 'Finalizado':
             tarefa_atualizar['data-fim'] = date.today().strftime('%d/%m/%Y')
 
-
     if task_body.get('prioridade'):
         tarefa_atualizar['prioridade'] = task_body['prioridade']
 
@@ -99,22 +193,80 @@ def update_task(task_id):
     return tarefa_atualizar
 
 @app.route('/tasks/<int:task_id>', methods=['DELETE'])
+@swag_from({
+    'tags': ['Tarefas'],
+    'description': 'Exclui uma tarefa',
+    'parameters': [
+        {
+            'name': 'task_id',
+            'in': 'path',
+            'type': 'integer',
+            'required': True,
+            'description': 'ID da tarefa'
+        }
+    ],
+    'responses': {
+        200: {
+            'description': 'Tarefa excluída com sucesso',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'sucess': {'type': 'string', 'example': 'Task deleted'}
+                }
+            }
+        },
+        404: {
+            'description': 'Tarefa não encontrada',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'error': {'type': 'string', 'example': 'Task not found'}
+                }
+            }
+        }
+    }
+})
 def delete_task(task_id):
     for tarefa in tarefas:
         if tarefa['id'] == task_id:
             tarefas.remove(tarefa)
             return {'sucess': 'Task deleted'}
-    return {'error': 'Task not found'}
-
+    return {'error': 'Task not found'}, 404
 
 @app.route('/tasks/<int:task_id>', methods=['GET'])
+@swag_from({
+    'tags': ['Tarefas'],
+    'description': 'Obtém detalhes de uma tarefa específica',
+    'parameters': [
+        {
+            'name': 'task_id',
+            'in': 'path',
+            'type': 'integer',
+            'required': True,
+            'description': 'ID da tarefa'
+        }
+    ],
+    'responses': {
+        200: {
+            'description': 'Detalhes da tarefa',
+            'schema': TASK_SCHEMA
+        },
+        404: {
+            'description': 'Tarefa não encontrada',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'error': {'type': 'string', 'example': 'Task not found'}
+                }
+            }
+        }
+    }
+})
 def get_task_by_id(task_id):
     for tarefa in tarefas:
         if tarefa['id'] == task_id:
             return tarefa
-    return {'erro': 'Task not found'}
-
-
+    return {'erro': 'Task not found'}, 404
 
 if __name__ == '__main__':
     app.run(debug=True)
