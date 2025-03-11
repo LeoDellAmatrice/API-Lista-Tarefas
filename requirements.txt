@@ -1,3 +1,6 @@
 Flask~=3.1.0
 gunicorn~=23.0.0
 flasgger~=0.9.7.1
+psycopg2-binary~=2.9.10
+dotenv~=0.9.9
+python-dotenv~=1.0.1
