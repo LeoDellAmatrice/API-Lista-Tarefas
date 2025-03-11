@@ -1,29 +1,28 @@
-from datetime import date
 from flasgger import Swagger, swag_from
 from flask import Flask, request
+from datetime import date
+from task import Task
 
 app = Flask(__name__)
 Swagger(app)
 
 tarefas = [
-    {
-        'id': 1,
-        'titulo': 'Atualizar Git Hub',
-        'descricao': 'Atualizar perfil do Git Hub, alterando foto, e adicionando descrição',
-        'status': 'Em andamento',
-        'prioridade': "Baixa",
-        'data-inicio': '24/02/2025',
-        'data-fim': None,
-    },
-    {
-        'id': 2,
-        'titulo': 'Estudar Flask',
-        'descricao': 'Estudar Flask para aprender sobre Web Service',
-        'status': 'Finalizado',
-        'prioridade': "Baixa",
-        'data-inicio': '24/02/2025',
-        'data-fim': '25/02/2025',
-    }
+    Task(task_id=1,
+         titulo='Atualizar Git Hub',
+         descricao='Atualizar perfil do Git Hub, alterando foto, e adicionando descrição',
+         status='Em andamento',
+         prioridade='Baixa',
+         data_inicio='24/02/2025',
+         data_fim=None),
+    Task(
+        task_id=2,
+        titulo='Estudar Flask',
+        descricao='Estudar Flask para aprender sobre Web Service',
+        status='Finalizado',
+        prioridade='Baixa',
+        data_inicio='24/02/2025',
+        data_fim='25/02/2025'
+    )
 ]
 
 # Schema padrão para respostas de tarefas
@@ -55,7 +54,10 @@ TASK_SCHEMA = {
     }
 })
 def get_tasks():
-    return tarefas
+    lista = []
+    for tarefa in tarefas:
+        lista.append(tarefa.json())
+    return lista
 
 @app.route('/tasks', methods=['POST'])
 @swag_from({
@@ -110,8 +112,17 @@ def create_task():
     else:
         task['data-fim'] = None
 
-    tarefas.append(task)
-    return task, 201
+    tarefa = Task(
+        task_id=task['id'],
+        titulo=task['titulo'],
+        descricao=task['descricao'],
+        status=task['status'],
+        prioridade=task['prioridade'],
+        data_inicio=task['data-inicio'],
+        data_fim=task['data-fim']
+    )
+    tarefas.append(tarefa)
+    return tarefa.json(), 201
 
 @app.route('/tasks/<int:task_id>', methods=['PUT'])
 @swag_from({
@@ -161,8 +172,8 @@ def create_task():
 def update_task(task_id):
     tarefa_atualizar = None
     for tarefa in tarefas:
-        if tarefa['id'] == task_id:
-            tarefa_atualizar = tarefa
+        if tarefa.get_id() == task_id:
+            tarefa_atualizar = tarefa.json()
             break
 
     if not tarefa_atualizar:
@@ -190,7 +201,10 @@ def update_task(task_id):
     if task_body.get('data-fim'):
         tarefa_atualizar['data-fim'] = task_body['data-fim']
 
-    return tarefa_atualizar
+    for tarefa in tarefas:
+        if tarefa.get_id() == task_id:
+            tarefa.atualizar(tarefa_atualizar)
+            return tarefa.json()
 
 @app.route('/tasks/<int:task_id>', methods=['DELETE'])
 @swag_from({
@@ -228,7 +242,7 @@ def update_task(task_id):
 })
 def delete_task(task_id):
     for tarefa in tarefas:
-        if tarefa['id'] == task_id:
+        if tarefa.get_id() == task_id:
             tarefas.remove(tarefa)
             return {'sucess': 'Task deleted'}
     return {'error': 'Task not found'}, 404
@@ -264,8 +278,8 @@ def delete_task(task_id):
 })
 def get_task_by_id(task_id):
     for tarefa in tarefas:
-        if tarefa['id'] == task_id:
-            return tarefa
+        if tarefa.get_id() == task_id:
+            return tarefa.json()
     return {'erro': 'Task not found'}, 404
 
 if __name__ == '__main__':
